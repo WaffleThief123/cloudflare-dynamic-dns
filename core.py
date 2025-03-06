@@ -2,6 +2,7 @@
 import requests
 import os
 from dotenv import load_dotenv
+from cloudflare import Cloudflare
 
 # Load environment variables from .env file in the ./data/ directory
 dotenv_path = os.path.join('./data', '.env')
@@ -13,45 +14,14 @@ CF_API_KEY = os.getenv("CF_API_KEY")
 
 # Dictionary of Cloudflare zones and corresponding subdomains
 # Format: {"subdomain.domain.tld": "ZONE_ID:RECORD_TYPE:RECORD_ID"}
-zones_subdomains = {
-    "subdomain.domain.tld": "example-zone-id:example-record-type:example-record-id",
-    # Add more entries as needed
-}
+# empty dict to populate later. 
+zones_subdomains = {}
 
+# Function to get the current public IP.
 def get_public_ip():
-    """Function to get the current public IP."""
     response = requests.get("https://ip.me")
     return response.text
 
-def update_cloudflare_dns(cf_zone_id, subdomain, cf_record_type, cf_record_id, current_public_ip):
-    """Function to update Cloudflare DNS record."""
-    url = f"https://api.cloudflare.com/client/v4/zones/{cf_zone_id}/dns_records/{cf_record_id}"
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {CF_API_KEY}",
-        "X-Auth-Email": CF_API_EMAIL,
-    }
-    data = {
-        "type": cf_record_type,
-        "name": subdomain,
-        "content": current_public_ip,
-        "ttl": 1,
-        "proxied": False,
-        "comment": "auto-updated by code in homelab on docker lxc",
-    }
-    response = requests.put(url, headers=headers, json=data)
-    return response.json()
-
-def get_cloudflare_zones():
-    """Function to get Cloudflare zones."""
-    url = "https://api.cloudflare.com/client/v4/zones"
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {CF_API_KEY}",
-        "X-Auth-Email": CF_API_EMAIL,
-    }
-    response = requests.get(url, headers=headers)
-    return response.json()
 
 print("Checking public IP and updating Cloudflare DNS...")
 
@@ -77,4 +47,3 @@ for subdomain, entry in zones_subdomains.items():
         print(f"Updated DNS record for {subdomain} to {current_ip} with custom string {cf_record_id}")
     else:
         print(f"Public IP has not changed for {subdomain}.")
-
