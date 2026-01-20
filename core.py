@@ -552,15 +552,11 @@ def main():
         logger.error("CF_API_EMAIL and CF_API_KEY must be set in ./data/.env")
         sys.exit(1)
     
-    # Configuration: Just list the subdomains you want to update
-    # The script will automatically find the zone and record IDs
-    # Supports both A and AAAA records - specify record types in the list
-    # Format: "subdomain.domain.tld" or "subdomain.domain.tld:A,AAAA"
+    # Subdomains to update. Edit ./data/dnsrecords.txt or add entries here.
+    # Format: "subdomain.domain.tld" or "subdomain.domain.tld:A" / ":AAAA"
     subdomains_config = [
-        "subdomain.domain.tld",  # Will update both A and AAAA if available
-        # "subdomain2.domain.tld:A",  # Only update A record
-        # "subdomain3.domain.tld:AAAA",  # Only update AAAA record
-        # Add more entries as needed
+        # "home.example.com",
+        # "vpn.example.com:A",
     ]
     
     # You can also load from a file if preferred
@@ -572,7 +568,7 @@ def main():
                 subdomains_config = file_subdomains
     
     if not subdomains_config:
-        logger.error("No subdomains configured. Please add subdomains to update.")
+        logger.error("No subdomains configured. Add entries to ./data/dnsrecords.txt")
         sys.exit(1)
     
     logger.info("Checking public IP and updating Cloudflare DNS...")

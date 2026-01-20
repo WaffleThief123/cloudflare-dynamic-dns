@@ -1,1 +1,6 @@
-example.com
+# One subdomain per line. Append :A or :AAAA to limit record types.
+# Examples:
+#   home.example.com        (updates both A and AAAA)
+#   vpn.example.com:A       (IPv4 only)
+#   server.example.com:AAAA (IPv6 only)
+
