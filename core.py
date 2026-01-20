@@ -409,31 +409,53 @@ class Database:
             }
 
 
-def setup_logging() -> logging.Logger:
-    """Setup logging to syslog and systemd journal if available."""
+def setup_logging(log_file: Optional[str] = None,
+                  max_bytes: int = 10 * 1024 * 1024,
+                  backup_count: int = 5) -> logging.Logger:
+    """Setup logging to console, syslog, systemd journal, and optionally a rotating file."""
     logger = logging.getLogger('cloudflare-dynamic-dns')
     logger.setLevel(logging.INFO)
-    
+
     # Clear any existing handlers
     logger.handlers.clear()
-    
+
     # Console handler
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.INFO)
     console_formatter = logging.Formatter('%(message)s')
     console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
-    
-    # Try systemd journal first (Linux)
+
+    # Rotating file handler (if configured)
+    if log_file:
+        try:
+            log_path = Path(log_file)
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            file_handler = logging.handlers.RotatingFileHandler(
+                log_path,
+                maxBytes=max_bytes,
+                backupCount=backup_count
+            )
+            file_handler.setLevel(logging.INFO)
+            file_formatter = logging.Formatter(
+                '%(asctime)s - %(levelname)s - %(message)s',
+                datefmt='%Y-%m-%d %H:%M:%S'
+            )
+            file_handler.setFormatter(file_formatter)
+            logger.addHandler(file_handler)
+            logger.info(f"Logging to file: {log_path} (max {max_bytes // 1024 // 1024}MB, {backup_count} backups)")
+        except Exception as e:
+            logger.warning(f"Could not setup file logging: {e}")
+
+    # Try systemd journal (Linux)
     if SYSTEMD_AVAILABLE:
         try:
             journal_handler = journal.JournalHandler()
             journal_handler.setLevel(logging.INFO)
             logger.addHandler(journal_handler)
-            logger.info("Logging to systemd journal enabled")
         except Exception as e:
             logger.debug(f"Could not setup systemd journal logging: {e}")
-    
+
     # Try syslog (Unix-like systems)
     try:
         syslog_handler = logging.handlers.SysLogHandler(address='/dev/log')
@@ -441,7 +463,6 @@ def setup_logging() -> logging.Logger:
         syslog_formatter = logging.Formatter('cloudflare-dynamic-dns[%(process)d]: %(message)s')
         syslog_handler.setFormatter(syslog_formatter)
         logger.addHandler(syslog_handler)
-        logger.info("Logging to syslog enabled")
     except Exception:
         # Try alternative syslog socket locations
         for socket_path in ['/var/run/syslog', '/var/run/log']:
@@ -451,11 +472,10 @@ def setup_logging() -> logging.Logger:
                 syslog_formatter = logging.Formatter('cloudflare-dynamic-dns[%(process)d]: %(message)s')
                 syslog_handler.setFormatter(syslog_formatter)
                 logger.addHandler(syslog_handler)
-                logger.info(f"Logging to syslog enabled via {socket_path}")
                 break
             except Exception:
                 continue
-    
+
     return logger
 
 
@@ -533,17 +553,24 @@ def process_record(cf: CloudflareAPI, subdomain: str, record_type: str, current_
 
 def main():
     """Main function to update DNS records."""
-    # Setup logging
-    logger = setup_logging()
-    
     # Setup paths
     script_dir = Path(__file__).parent
     data_dir = script_dir / "data"
-    
+
     # Load environment variables
     dotenv_path = data_dir / ".env"
     load_dotenv(dotenv_path=dotenv_path)
-    
+
+    # Setup logging (with optional file rotation from env)
+    log_file = os.getenv("LOG_FILE")
+    log_max_mb = int(os.getenv("LOG_MAX_MB", "10"))
+    log_backup_count = int(os.getenv("LOG_BACKUP_COUNT", "5"))
+    logger = setup_logging(
+        log_file=log_file,
+        max_bytes=log_max_mb * 1024 * 1024,
+        backup_count=log_backup_count
+    )
+
     # Get API credentials
     cf_api_email = os.getenv("CF_API_EMAIL")
     cf_api_key = os.getenv("CF_API_KEY")

@@ -129,7 +129,15 @@ The database is created automatically on first run.
 
 ## Logging
 
-Output goes to stdout, syslog, and the systemd journal (if available). View logs with:
+Output goes to stdout, syslog, and the systemd journal (if available). You can also enable file logging with rotation by adding these to your `.env`:
+
+```bash
+LOG_FILE="./data/cloudflare-dns.log"
+LOG_MAX_MB=10        # Max size before rotation (default: 10)
+LOG_BACKUP_COUNT=5   # Number of old logs to keep (default: 5)
+```
+
+View systemd logs with:
 
 ```bash
 journalctl -u cloudflare-dns.service -f
